@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>סייר הספרים</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --border-subtle: #21262d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --text-dim: #cdd9e5;
+      --accent: #a78bfa;
+      --accent2: #38bdf8;
+      --green: #3fb950;
+      --yellow: #d29922;
+    }
+
+    body {
+      font-family: 'Heebo', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem 5rem;
+    }
+
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 {
+      font-size: 2.2rem; font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 0.3rem;
+    }
+    header p { color: var(--text-muted); font-size: 1rem; }
+
+    .container { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.75rem; }
+
+    /* Search */
+    .search-box {
+      display: flex; gap: 0.75rem; align-items: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 0.9rem 1.25rem;
+    }
+    .search-box input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-size: 1.1rem; color: var(--text); font-family: inherit;
+    }
+    .search-box input::placeholder { color: #484f58; }
+    .search-box button {
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      border: none; border-radius: 10px; color: white;
+      font-size: 0.95rem; font-weight: 600; padding: 0.6rem 1.4rem;
+      cursor: pointer; font-family: inherit; transition: opacity 0.2s; white-space: nowrap;
+    }
+    .search-box button:hover { opacity: 0.85; }
+    .search-box button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Loading */
+    .loading { display: none; text-align: center; padding: 3.5rem 1rem; }
+    .loading.visible { display: block; }
+    .spinner {
+      width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: #7c3aed;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* Book page */
+    .book-page { display: none; flex-direction: column; gap: 1.5rem; }
+    .book-page.visible { display: flex; }
+
+    /* Hero header */
+    .book-hero {
+      background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%);
+      border: 1px solid var(--border); border-radius: 20px; padding: 2rem;
+      display: flex; gap: 1.75rem; align-items: flex-start;
+    }
+    .book-cover-wrap { flex-shrink: 0; }
+    .book-cover-wrap img { width: 110px; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); display: block; }
+    .cover-ph {
+      width: 110px; height: 155px; border-radius: 8px; background: linear-gradient(135deg,#1f2d3d,#2d3748);
+      display: flex; align-items: center; justify-content: center; font-size: 3rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .book-hero-meta { flex: 1; }
+    .book-hero-title { font-size: 1.9rem; font-weight: 800; line-height: 1.2; margin-bottom: 0.3rem; }
+    .book-hero-author { font-size: 1rem; color: var(--accent); font-weight: 500; margin-bottom: 0.5rem; }
+    .book-hero-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+    .book-oneliner {
+      font-size: 1.1rem; color: var(--text-dim); line-height: 1.6; font-weight: 400;
+      border-right: 3px solid #7c3aed; padding-right: 1rem; margin-bottom: 1rem;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .tag { background: #21262d; border: 1px solid var(--border); border-radius: 20px; padding: 0.15rem 0.65rem; font-size: 0.75rem; color: var(--text-muted); }
+
+    /* Section card */
+    .section-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    }
+    .section-header {
+      padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-muted);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .section-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .section-body { padding: 1.75rem; }
+
+    /* Overview */
+    .overview-text { font-size: 1.05rem; line-height: 1.95; color: var(--text-dim); }
+
+    /* Characters / Concepts grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
+    .char-card {
+      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 14px;
+      padding: 1.1rem 1.2rem;
+    }
+    .char-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.2rem; }
+    .char-role { font-size: 0.78rem; color: var(--accent); font-weight: 600; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .char-desc { font-size: 0.92rem; color: var(--text-muted); line-height: 1.7; }
+
+    /* Story Arc timeline */
+    .arc-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
+    .arc-timeline {
+      display: flex; align-items: flex-start; gap: 0;
+      min-width: max-content; direction: ltr;
+    }
+    .arc-step { display: flex; flex-direction: column; align-items: center; width: 160px; }
+    .arc-node-row { display: flex; align-items: center; width: 100%; }
+    .arc-node {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: white;
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      position: relative; z-index: 1;
+    }
+    .arc-line { flex: 1; height: 2px; background: linear-gradient(90deg, #7c3aed, #0ea5e9); opacity: 0.4; }
+    .arc-step:last-child .arc-line { display: none; }
+    .arc-content { margin-top: 0.7rem; text-align: center; padding: 0 0.5rem; }
+    .arc-phase { font-size: 0.78rem; font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .arc-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* Themes */
+    .themes-list { display: flex; flex-direction: column; gap: 1.1rem; }
+    .theme-item {
+      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 14px;
+      padding: 1.2rem 1.4rem; display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .theme-icon {
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(14,165,233,0.25));
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+    }
+    .theme-body { flex: 1; }
+    .theme-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; }
+    .theme-explanation { font-size: 0.95rem; color: var(--text-muted); line-height: 1.75; }
+
+    /* Quotes */
+    .quotes-list { display: flex; flex-direction: column; gap: 1rem; }
+    .quote-item {
+      background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(14,165,233,0.06));
+      border: 1px solid rgba(124,58,237,0.25); border-radius: 14px; padding: 1.2rem 1.5rem;
+    }
+    .quote-mark { font-size: 2rem; color: var(--accent); line-height: 1; margin-bottom: 0.3rem; opacity: 0.6; }
+    .quote-text { font-size: 1.05rem; color: var(--text-dim); font-style: italic; line-height: 1.7; margin-bottom: 0.6rem; }
+    .quote-context { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* Takeaways */
+    .takeaways-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .takeaway-item {
+      display: flex; gap: 0.9rem; align-items: flex-start;
+      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem 1.25rem;
+    }
+    .takeaway-num {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: white;
+    }
+    .takeaway-text { font-size: 0.97rem; color: var(--text-dim); line-height: 1.6; padding-top: 0.15rem; }
+
+    /* Chat */
+    .chat-card {
+      display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    }
+    .chat-card.visible { display: block; }
+    .chat-title {
+      padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .chat-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .chat-messages { display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto; padding: 1.5rem; }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .msg { max-width: 78%; padding: 0.85rem 1.1rem; border-radius: 16px; line-height: 1.75; font-size: 0.97rem; white-space: pre-wrap; }
+    .msg.user { background: linear-gradient(135deg, #6d28d9, #0284c7); color: white; align-self: flex-end; border-bottom-left-radius: 4px; }
+    .msg.ai { background: #1f2937; color: var(--text-dim); align-self: flex-start; border-bottom-right-radius: 4px; border: 1px solid var(--border); }
+    @keyframes dotBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    .typing-dots { display: flex; gap: 5px; align-items: center; }
+    .typing-dots span { width: 7px; height: 7px; background: #7c3aed; border-radius: 50%; animation: dotBounce 1.2s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+    .chat-input-row { display: flex; gap: 0.6rem; padding: 1rem 1.5rem; border-top: 1px solid var(--border-subtle); }
+    .chat-input-row input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.7rem 1rem; color: var(--text); font-size: 0.97rem; outline: none; font-family: inherit; transition: border-color 0.2s;
+    }
+    .chat-input-row input:focus { border-color: #7c3aed; }
+    .chat-input-row input::placeholder { color: #484f58; }
+    .chat-input-row button { background: #7c3aed; border: none; border-radius: 12px; color: white; padding: 0.7rem 1.2rem; cursor: pointer; font-size: 1.1rem; transition: background 0.2s; }
+    .chat-input-row button:hover { background: #6d28d9; }
+    .chat-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .error-banner { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 12px; padding: 1rem 1.25rem; color: #f87171; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 סייר הספרים</h1>
+    <p>סיכום מעמיק + שאל שאלות</p>
+  </header>
+
+  <div class="container">
+    <div class="search-box">
+      <input type="text" id="bookInput" placeholder="שם הספר..." autofocus>
+      <button id="searchBtn" onclick="startBook()">חפש ספר</button>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>בונה סיכום מעמיק...</p>
+    </div>
+
+    <div id="errorBanner" style="display:none"></div>
+
+    <div class="book-page" id="bookPage">
+
+      <!-- Hero -->
+      <div class="book-hero">
+        <div class="book-cover-wrap" id="heroCover"></div>
+        <div class="book-hero-meta">
+          <div class="book-hero-title" id="heroTitle"></div>
+          <div class="book-hero-author" id="heroAuthor"></div>
+          <div class="book-hero-info" id="heroInfo"></div>
+          <div class="book-oneliner" id="heroOneLiner"></div>
+          <div class="tags" id="heroTags"></div>
+        </div>
+      </div>
+
+      <!-- Overview -->
+      <div class="section-card" id="secOverview">
+        <div class="section-header"><span class="dot"></span>סקירה כללית</div>
+        <div class="section-body">
+          <div class="overview-text" id="overviewText"></div>
+        </div>
+      </div>
+
+      <!-- Characters -->
+      <div class="section-card" id="secChars">
+        <div class="section-header"><span class="dot" style="background:#38bdf8"></span><span id="charsTitle">הדמויות</span></div>
+        <div class="section-body">
+          <div class="cards-grid" id="charsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Story Arc -->
+      <div class="section-card" id="secArc">
+        <div class="section-header"><span class="dot" style="background:#3fb950"></span>מסע העלילה</div>
+        <div class="section-body">
+          <div class="arc-wrap">
+            <div class="arc-timeline" id="arcTimeline"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Themes -->
+      <div class="section-card" id="secThemes">
+        <div class="section-header"><span class="dot" style="background:#d29922"></span>הנושאים המרכזיים</div>
+        <div class="section-body">
+          <div class="themes-list" id="themesList"></div>
+        </div>
+      </div>
+
+      <!-- Quotes -->
+      <div class="section-card" id="secQuotes">
+        <div class="section-header"><span class="dot" style="background:#f0883e"></span>ציטוטים שנשארים</div>
+        <div class="section-body">
+          <div class="quotes-list" id="quotesList"></div>
+        </div>
+      </div>
+
+      <!-- Takeaways -->
+      <div class="section-card" id="secTakeaways">
+        <div class="section-header"><span class="dot" style="background:#58a6ff"></span>מה לוקחים מהספר</div>
+        <div class="section-body">
+          <div class="takeaways-list" id="takeawaysList"></div>
+        </div>
+      </div>
+
+    </div><!-- end book-page -->
+
+    <!-- Chat -->
+    <div class="chat-card" id="chatCard">
+      <div class="chat-title"><span class="dot"></span>שאל שאלה על הספר</div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="שאל שאלה..." onkeydown="if(event.key==='Enter')sendQuestion()">
+        <button id="sendBtn" onclick="sendQuestion()">שלח ➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentBook = '';
+    let summaryContext = '';
+    let isStreaming = false;
+
+    const THEME_ICONS = ['💡','🎭','⚖️','❤️','🌊','🔥','🧠','🌍','👁','⏳','🪞','🗝️'];
+
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function startBook() {
+      const input = document.getElementById('bookInput');
+      const book = input.value.trim();
+      if (!book || isStreaming) return;
+
+      currentBook = book;
+      summaryContext = '';
+      isStreaming = true;
+
+      document.getElementById('searchBtn').disabled = true;
+      document.getElementById('loading').classList.add('visible');
+      document.getElementById('bookPage').classList.remove('visible');
+      document.getElementById('chatCard').classList.remove('visible');
+      document.getElementById('errorBanner').style.display = 'none';
+      document.getElementById('chatMessages').innerHTML = '';
+
+      try {
+        const res = await fetch('/api/summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ book })
+        });
+        const data = await res.json();
+        document.getElementById('loading').classList.remove('visible');
+
+        if (data.error) {
+          const b = document.getElementById('errorBanner');
+          b.textContent = data.error;
+          b.style.display = 'block';
+        } else {
+          renderBook(data);
+          document.getElementById('bookPage').classList.add('visible');
+          document.getElementById('chatCard').classList.add('visible');
+          document.getElementById('chatInput').focus();
+        }
+      } catch (err) {
+        document.getElementById('loading').classList.remove('visible');
+        const b = document.getElementById('errorBanner');
+        b.textContent = 'שגיאה: ' + err.message;
+        b.style.display = 'block';
+      }
+
+      isStreaming = false;
+      document.getElementById('searchBtn').disabled = false;
+    }
+
+    function renderBook(d) {
+      // Cover
+      const coverEl = document.getElementById('heroCover');
+      if (d.cover) {
+        coverEl.innerHTML = `<img src="${esc(d.cover)}" alt="כריכה" onerror="this.parentElement.innerHTML='<div class=cover-ph>📖</div>'">`;
+      } else {
+        coverEl.innerHTML = `<div class="cover-ph">📖</div>`;
+      }
+
+      document.getElementById('heroTitle').textContent = d.title || '';
+      document.getElementById('heroAuthor').textContent = d.authors ? `מאת ${d.authors}` : '';
+      const info = [d.year, d.pageCount ? `${d.pageCount} עמודים` : null].filter(Boolean).join(' · ');
+      document.getElementById('heroInfo').textContent = info;
+      document.getElementById('heroOneLiner').textContent = d.oneLiner || '';
+
+      const tagsEl = document.getElementById('heroTags');
+      tagsEl.innerHTML = (d.subjects||[]).map(s => `<span class="tag">${esc(s)}</span>`).join('');
+
+      // Overview
+      document.getElementById('overviewText').textContent = d.overview || '';
+
+      // Characters
+      const grid = document.getElementById('charsGrid');
+      const chars = d.characters || [];
+      if (chars.length) {
+        grid.innerHTML = chars.map(c => `
+          <div class="char-card">
+            <div class="char-name">${esc(c.name)}</div>
+            <div class="char-role">${esc(c.role)}</div>
+            <div class="char-desc">${esc(c.description)}</div>
+          </div>`).join('');
+      } else { hide('secChars'); }
+
+      // Arc
+      const arc = d.arc || [];
+      if (arc.length) {
+        document.getElementById('arcTimeline').innerHTML = arc.map((step, i) => `
+          <div class="arc-step">
+            <div class="arc-node-row">
+              <div class="arc-node">${i + 1}</div>
+              <div class="arc-line"></div>
+            </div>
+            <div class="arc-content">
+              <div class="arc-phase">${esc(step.phase)}</div>
+              <div class="arc-desc">${esc(step.description)}</div>
+            </div>
+          </div>`).join('');
+      } else { hide('secArc'); }
+
+      // Themes
+      const themes = d.themes || [];
+      if (themes.length) {
+        document.getElementById('themesList').innerHTML = themes.map((t, i) => `
+          <div class="theme-item">
+            <div class="theme-icon">${THEME_ICONS[i % THEME_ICONS.length]}</div>
+            <div class="theme-body">
+              <div class="theme-title">${esc(t.title)}</div>
+              <div class="theme-explanation">${esc(t.explanation)}</div>
+            </div>
+          </div>`).join('');
+      } else { hide('secThemes'); }
+
+      // Quotes
+      const quotes = d.quotes || [];
+      if (quotes.length) {
+        document.getElementById('quotesList').innerHTML = quotes.map(q => `
+          <div class="quote-item">
+            <div class="quote-mark">"</div>
+            <div class="quote-text">${esc(q.text)}</div>
+            <div class="quote-context">${esc(q.context)}</div>
+          </div>`).join('');
+      } else { hide('secQuotes'); }
+
+      // Takeaways
+      const tw = d.takeaways || [];
+      if (tw.length) {
+        document.getElementById('takeawaysList').innerHTML = tw.map((t, i) => `
+          <div class="takeaway-item">
+            <div class="takeaway-num">${i + 1}</div>
+            <div class="takeaway-text">${esc(t)}</div>
+          </div>`).join('');
+      } else { hide('secTakeaways'); }
+
+      summaryContext = [
+        d.overview,
+        (d.themes||[]).map(t => `${t.title}: ${t.explanation}`).join('\n'),
+        (d.takeaways||[]).join('\n')
+      ].filter(Boolean).join('\n\n');
+    }
+
+    async function sendQuestion() {
+      const chatInput = document.getElementById('chatInput');
+      const question = chatInput.value.trim();
+      if (!question || isStreaming) return;
+
+      isStreaming = true;
+      chatInput.value = '';
+      document.getElementById('sendBtn').disabled = true;
+
+      const messagesEl = document.getElementById('chatMessages');
+      const userMsg = document.createElement('div');
+      userMsg.className = 'msg user';
+      userMsg.textContent = question;
+      messagesEl.appendChild(userMsg);
+
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'msg ai';
+      aiMsg.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+      messagesEl.appendChild(aiMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ book: currentBook, question, summaryContext })
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '', aiContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6).trim());
+            if (parsed.done) break;
+            if (parsed.text) {
+              if (aiMsg.querySelector('.typing-dots')) aiMsg.textContent = '';
+              aiContent += parsed.text;
+              aiMsg.textContent = aiContent;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+
+      isStreaming = false;
+      document.getElementById('sendBtn').disabled = false;
+      chatInput.focus();
+    }
+
+    document.getElementById('bookInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') startBook();
+    });
+  </script>
+</body>
+</html>
