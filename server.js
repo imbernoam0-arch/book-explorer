@@ -12,8 +12,8 @@ try {
 } catch {}
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_STREAM_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
-const GEMINI_JSON_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_STREAM_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
+const GEMINI_JSON_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -21,6 +21,7 @@ app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
 
 const bookCache = new Map();
+const summaryCache = new Map();
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124 Safari/537.36';
 
 // ─── Data sources ─────────────────────────────────────────────────────────────
@@ -173,6 +174,9 @@ app.post('/api/summary', async (req, res) => {
   const { book } = req.body;
   if (!book) return res.status(400).json({ error: 'חסר שם ספר' });
 
+  const cacheKey = book.trim().toLowerCase();
+  if (summaryCache.has(cacheKey)) return res.json(summaryCache.get(cacheKey));
+
   try {
     const data = await getBookData(book);
     const { google, openLib } = data;
@@ -225,17 +229,24 @@ ${rawContext ? `מידע מהאינטרנט לעזרה:\n${rawContext.slice(0, 2
     });
 
     if (!geminiRes.ok) {
-      const err = await geminiRes.text();
-      return res.status(500).json({ error: `Gemini error: ${err}` });
+      const errText = await geminiRes.text();
+      let userMsg = 'שגיאה בשירות הבינה המלאכותית';
+      if (geminiRes.status === 429) userMsg = 'חרגנו ממגבלת הבקשות ל-AI. נסה שוב מחר או פנה למפתח.';
+      return res.status(500).json({ error: userMsg, detail: errText });
     }
 
     const geminiData = await geminiRes.json();
-    const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!jsonText) {
+      const reason = geminiData.candidates?.[0]?.finishReason || 'UNKNOWN';
+      return res.status(500).json({ error: `תגובת AI ריקה (${reason}). נסה שוב.` });
+    }
+
     let structured;
     try { structured = JSON.parse(jsonText); }
-    catch { structured = {}; }
+    catch { return res.status(500).json({ error: 'שגיאה בעיבוד תגובת ה-AI. נסה שוב.' }); }
 
-    res.json({
+    const result = {
       title: google?.title || book,
       authors: google?.authors || null,
       year: google?.year || null,
@@ -243,7 +254,9 @@ ${rawContext ? `מידע מהאינטרנט לעזרה:\n${rawContext.slice(0, 2
       subjects: (google?.subjects || openLib?.subjects || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6),
       cover: cover || null,
       ...structured,
-    });
+    };
+    summaryCache.set(cacheKey, result);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
