@@ -46,9 +46,14 @@ function titleSimilar(found, query) {
 }
 
 const AGGREGATOR_PATTERNS = [
-  'summaries', 'summary of', 'study guide', 'flashbooks', 'sparknotes', 'instaread',
-  'getabstract', 'shortform', 'bookrags', 'cliffsnotes', 'litcharts', 'blinkist',
-  'analysis of', 'companion to', 'guide to'
+  'summaries', 'summary of', 'study guide', 'flashbooks', 'sparknotes', 'spark publishing',
+  'spark notes', 'instaread', 'getabstract', 'shortform', 'bookrags', 'cliffsnotes',
+  'cliffs notes', 'litcharts', 'blinkist', 'analysis of', 'companion to', 'guide to',
+  'speedy reads', 'speedyreads', 'quickread', 'quick read', 'bright summaries',
+  'brightsummaries', 'everest media', 'sumoreads', 'milkyway media', 'milkywaymedia',
+  'idreambooks', 'i dream books', 'workbook for', 'workbook on',
+  'a guide to', 'an analysis of', 'summarize',
+  'in 30 minutes', 'unauthorized', 'paul adams 4th'
 ];
 
 function isAggregator(item) {
