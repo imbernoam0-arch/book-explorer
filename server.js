@@ -24,17 +24,43 @@ const bookCache = new Map();
 const summaryCache = new Map();
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124 Safari/537.36';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalize(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[״"'`׳.,!?:;\-—–()\[\]{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function titleSimilar(found, query) {
+  const f = normalize(found);
+  const q = normalize(query);
+  if (!f || !q) return false;
+  if (f === q || f.includes(q) || q.includes(f)) return true;
+  const qWords = q.split(' ').filter(w => w.length > 2);
+  if (qWords.length === 0) return false;
+  const matches = qWords.filter(w => f.includes(w)).length;
+  return matches / qWords.length >= 0.6;
+}
+
 // ─── Data sources ─────────────────────────────────────────────────────────────
 
 async function fetchGoogleBooks(bookName) {
   try {
     const data = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(bookName)}&maxResults=5&printType=books`
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(bookName)}&maxResults=15&printType=books&orderBy=relevance`
     ).then(r => r.json());
     if (!data.items?.length) return null;
-    const best = data.items.find(i => i.volumeInfo.description?.length > 100) || data.items[0];
+    const candidates = data.items.filter(i => i.volumeInfo?.title && titleSimilar(i.volumeInfo.title, bookName));
+    if (!candidates.length) return null;
+    const best = candidates.sort((a, b) =>
+      (b.volumeInfo.description?.length || 0) - (a.volumeInfo.description?.length || 0)
+    )[0];
     const v = best.volumeInfo;
-    const cover = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '').replace('http://', 'https://').replace('zoom=1', 'zoom=2');
+    const cover = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '')
+      .replace('http://', 'https://').replace('zoom=1', 'zoom=2');
     return {
       title: v.title,
       authors: v.authors?.join(', '),
@@ -43,6 +69,7 @@ async function fetchGoogleBooks(bookName) {
       subjects: v.categories?.join(', '),
       cover: cover || null,
       pageCount: v.pageCount,
+      ratingsCount: v.ratingsCount || 0,
     };
   } catch { return null; }
 }
@@ -50,30 +77,43 @@ async function fetchGoogleBooks(bookName) {
 async function fetchOpenLibrary(bookName) {
   try {
     const data = await fetch(
-      `https://openlibrary.org/search.json?title=${encodeURIComponent(bookName)}&limit=1&fields=title,author_name,subject,first_sentence,cover_i`
+      `https://openlibrary.org/search.json?title=${encodeURIComponent(bookName)}&limit=5&fields=title,author_name,subject,first_sentence,cover_i,edition_count`
     ).then(r => r.json());
-    const doc = data.docs?.[0];
-    if (!doc) return null;
+    const docs = (data.docs || []).filter(d => d.title && titleSimilar(d.title, bookName));
+    if (!docs.length) return null;
+    const doc = docs.sort((a, b) => (b.edition_count || 0) - (a.edition_count || 0))[0];
     return {
+      title: doc.title,
+      authors: doc.author_name?.join(', '),
       subjects: doc.subject?.slice(0, 8).join(', '),
       firstSentence: doc.first_sentence?.value || (typeof doc.first_sentence === 'string' ? doc.first_sentence : null),
       coverId: doc.cover_i,
+      editionCount: doc.edition_count || 0,
     };
   } catch { return null; }
 }
 
 async function fetchWikiFull(query, lang) {
   try {
-    const searchData = await fetch(
-      `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=1`
-    ).then(r => r.json());
-    if (!searchData.query?.search?.length) return null;
-    const title = searchData.query.search[0].title;
-    const extractData = await fetch(
-      `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts&exlimit=1&format=json&origin=*&explaintext=1`
-    ).then(r => r.json());
-    const pages = extractData.query?.pages;
-    return Object.values(pages || {})[0]?.extract?.trim() || null;
+    const hint = lang === 'he' ? ' ספר' : ' book novel';
+    for (const srQuery of [query + hint, query]) {
+      const searchData = await fetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(srQuery)}&format=json&origin=*&srlimit=3`
+      ).then(r => r.json());
+      const hits = searchData.query?.search || [];
+      for (const hit of hits) {
+        const title = hit.title;
+        const extractData = await fetch(
+          `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts&exlimit=1&format=json&origin=*&explaintext=1`
+        ).then(r => r.json());
+        const pages = extractData.query?.pages;
+        const extract = Object.values(pages || {})[0]?.extract?.trim();
+        if (extract && extract.length > 300 && !/^may refer to:/i.test(extract)) {
+          return { title, extract };
+        }
+      }
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -99,19 +139,32 @@ async function getBookData(bookName) {
     fetchOpenLibrary(bookName),
     fetchWikiFull(bookName, 'he'),
     fetchWikiFull(bookName, 'en'),
-    fetchDDGSnippets(`${bookName} book themes lessons summary`),
+    fetchDDGSnippets(`${bookName} book themes summary review`),
   ]);
   const data = { google, openLib, heWiki, enWiki, ddg };
   bookCache.set(bookName, data);
   return data;
 }
 
+function bookVerified({ google, openLib, heWiki, enWiki }) {
+  const hasGoogleSolid = !!(google && google.description && google.description.length > 80);
+  const hasGoogleWeak = !!(google && google.authors);
+  const hasHeWiki = !!(heWiki && heWiki.extract && heWiki.extract.length > 400);
+  const hasEnWiki = !!(enWiki && enWiki.extract && enWiki.extract.length > 400);
+  const hasOL = !!(openLib && openLib.editionCount >= 3 && (openLib.authors || openLib.subjects));
+  const strong = (hasGoogleSolid ? 1 : 0) + (hasHeWiki ? 1 : 0) + (hasEnWiki ? 1 : 0) + (hasOL ? 1 : 0);
+  const weak = (hasGoogleWeak ? 1 : 0);
+  return strong >= 1 || weak >= 2;
+}
+
 function buildRawContext({ google, openLib, heWiki, enWiki, ddg }) {
   const parts = [];
-  if (google?.description) parts.push(`תיאור (Google Books):\n${google.description}`);
+  if (google?.title) parts.push(`כותרת רשמית (Google Books): ${google.title}${google.authors ? ` — ${google.authors}` : ''}${google.year ? ` (${google.year})` : ''}`);
+  if (google?.description) parts.push(`תיאור (Google Books):\n${google.description.slice(0, 1500)}`);
   if (openLib?.firstSentence) parts.push(`פתיחת הספר:\n${openLib.firstSentence}`);
-  if (heWiki) parts.push(`ויקיפדיה עברית:\n${heWiki.slice(0, 1200)}`);
-  else if (enWiki) parts.push(`Wikipedia (English):\n${enWiki.slice(0, 1200)}`);
+  if (openLib?.authors && !google?.authors) parts.push(`מחברים (Open Library): ${openLib.authors}`);
+  if (heWiki?.extract) parts.push(`ויקיפדיה עברית — "${heWiki.title}":\n${heWiki.extract.slice(0, 2000)}`);
+  if (enWiki?.extract) parts.push(`Wikipedia (English) — "${enWiki.title}":\n${enWiki.extract.slice(0, 2000)}`);
   if (ddg) parts.push(`מהאינטרנט:\n${ddg}`);
   return parts.join('\n\n---\n\n');
 }
@@ -179,14 +232,38 @@ app.post('/api/summary', async (req, res) => {
 
   try {
     const data = await getBookData(book);
-    const { google, openLib } = data;
+    const { google, openLib, heWiki, enWiki } = data;
+
+    if (!bookVerified(data)) {
+      return res.status(404).json({
+        error: 'לא מצאתי את הספר הזה במקורות אמינים. נסה לכתוב את השם בדיוק כפי שמופיע על הכריכה, או להוסיף את שם הסופר (לדוגמה: "1984 אורוול").'
+      });
+    }
 
     let cover = google?.cover;
     if (!cover && openLib?.coverId) cover = `https://covers.openlibrary.org/b/id/${openLib.coverId}-L.jpg`;
 
     const rawContext = buildRawContext(data);
+    const identifiedTitle = google?.title || heWiki?.title || enWiki?.title || openLib?.title || book;
+    const identifiedAuthors = google?.authors || openLib?.authors || '';
 
-    const prompt = `אתה לא מסכם את הספר "${book}". אתה מוביל את הקורא דרך מסע תודעתי דרכו.
+    const prompt = `לפני הכל — בדיקת אמת:
+
+המשתמש מחפש סיכום עבור הספר ששמו: "${book}"
+המידע שאספנו ממקורות אמינים על הספר נמצא בסוף הפרומפט.
+
+חוקי ברזל:
+1. אם המידע למטה לא מתאר ספר מוכר וברור, או שהוא מערב מספר ספרים שונים, או שאתה לא יכול לזהות בוודאות את הספר — החזר בדיוק את זה ושום דבר אחר:
+   { "notFound": true, "reason": "תיאור קצר בעברית למה לא הצלחת לזהות" }
+2. אסור להמציא דמויות, ציטוטים, רעיונות, נושאים או תיאורים שלא מבוססים על המידע למטה או על ידע אמיתי שלך על הספר.
+3. עדיף להחזיר notFound מאשר להמציא תוכן.
+4. אם המידע מצביע על ספר אחר מזה שהמשתמש ביקש — החזר notFound.
+
+רק אם אתה בטוח שזה ספר אמיתי שאתה מכיר היטב (גם דרך הידע שלך וגם דרך המידע למטה), המשך לכתוב את הסיכום במבנה למטה.
+
+---
+
+אתה לא מסכם את הספר "${book}". אתה מוביל את הקורא דרך מסע תודעתי דרכו.
 
 המטרה: שהמשתמש ירגיש שהוא עבר דרך מערכת חשיבה חדשה — לא שקיבל תקציר.
 הטון: חכם, אנושי, חד, לא מתאמץ להרשים, עמוק בלי להיות מתנשא.
@@ -257,8 +334,10 @@ app.post('/api/summary', async (req, res) => {
 - אל תהיה כללי - תהיה ספציפי לספר הזה.
 - אל תכתוב "הספר אומר ש..." או "המחבר טוען ש..." - דבר ישירות מתוך הרעיונות.
 - כל משפט צריך להרגיש שהוא מגלה משהו, לא שהוא מסביר.
-- אם אין מספיק מידע על הספר - תכתוב פחות, אל תמציא תוכן גנרי.
-${rawContext ? `\nמידע על הספר (לעזרה, אל תצטט מילולית):\n${rawContext.slice(0, 2500)}` : ''}`;
+- אסור להמציא. אם אתה לא בטוח לגבי פרט מסוים - השמט אותו במקום לנחש.
+
+הספר שזוהה במקורות: "${identifiedTitle}"${identifiedAuthors ? ` מאת ${identifiedAuthors}` : ''}
+${rawContext ? `\nמידע אמיתי על הספר ממקורות חיצוניים (השתמש בו כדי לעגן את הסיכום באמת, אל תצטט מילולית):\n${rawContext.slice(0, 4000)}` : ''}`;
 
     const geminiRes = await fetch(GEMINI_JSON_URL, {
       method: 'POST',
@@ -288,9 +367,19 @@ ${rawContext ? `\nמידע על הספר (לעזרה, אל תצטט מילולי
     try { structured = JSON.parse(jsonText); }
     catch { return res.status(500).json({ error: 'שגיאה בעיבוד תגובת ה-AI. נסה שוב.' }); }
 
+    if (structured.notFound) {
+      return res.status(404).json({
+        error: `לא הצלחתי לזהות את הספר "${book}" בוודאות${structured.reason ? ` (${structured.reason})` : ''}. נסה שם מדויק יותר או הוסף את שם הסופר.`
+      });
+    }
+
+    if (!structured.openingLine && !structured.stage1_problem && !structured.stage3_bigIdea) {
+      return res.status(500).json({ error: 'תגובת AI לא תקינה. נסה שוב.' });
+    }
+
     const result = {
-      title: google?.title || book,
-      authors: google?.authors || null,
+      title: google?.title || heWiki?.title || enWiki?.title || book,
+      authors: google?.authors || openLib?.authors || null,
       year: google?.year || null,
       pageCount: google?.pageCount || null,
       subjects: (google?.subjects || openLib?.subjects || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6),

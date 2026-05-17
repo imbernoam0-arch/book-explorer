@@ -84,12 +84,27 @@
     .loading p { color: var(--text-muted); font-size: 0.95rem; font-weight: 300; }
 
     .error-banner {
-      max-width: 640px; margin: 2rem auto;
-      background: rgba(248,113,113,0.05);
-      border: 1px solid rgba(248,113,113,0.25);
-      border-radius: 12px;
-      padding: 1rem 1.25rem;
-      color: #f5a3a3; font-size: 0.95rem; text-align: center;
+      max-width: 580px; margin: 3rem auto;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-right: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 1.75rem 1.75rem;
+      color: var(--text-dim);
+      font-size: 1.02rem;
+      line-height: 1.7;
+      text-align: right;
+      font-weight: 300;
+    }
+    .error-banner-label {
+      display: block;
+      font-family: var(--serif);
+      font-size: 0.85rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+      font-weight: 500;
     }
 
     /* ─── Intro / Welcome ─── */
@@ -903,7 +918,7 @@
         $('loading').classList.remove('visible');
 
         if (data.error) {
-          $('errorBanner').textContent = data.error;
+          $('errorBanner').innerHTML = '<span class="error-banner-label">לא נמצא</span>' + esc(data.error);
           $('errorBanner').style.display = 'block';
           $('welcome').style.display = '';
         } else {
