@@ -5,315 +5,845 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>סייר הספרים</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@200;300;400;500;600;700;800;900&family=Frank+Ruhl+Libre:wght@300;400;500;700;900&display=swap');
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #30363d;
-      --border-subtle: #21262d;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --text-dim: #cdd9e5;
-      --accent: #a78bfa;
-      --accent2: #38bdf8;
-      --green: #3fb950;
-      --yellow: #d29922;
+      --bg: #0a0a0d;
+      --bg-soft: #101015;
+      --surface: #15151c;
+      --border: #22222c;
+      --border-subtle: #1a1a22;
+      --text: #f0ebe0;
+      --text-muted: #8a8479;
+      --text-dim: #b8b2a4;
+      --text-faint: #4a4640;
+      --accent: #d4a574;
+      --accent-soft: #c89b6a;
+      --accent-dim: rgba(212,165,116,0.15);
+      --serif: 'Frank Ruhl Libre', 'Heebo', serif;
+      --sans: 'Heebo', system-ui, sans-serif;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
     body {
-      font-family: 'Heebo', Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 2rem 1rem 5rem;
+      font-weight: 300;
+      letter-spacing: 0.01em;
+      line-height: 1.7;
     }
 
-    header { text-align: center; margin-bottom: 2.5rem; }
-    header h1 {
-      font-size: 2.2rem; font-weight: 800;
-      background: linear-gradient(135deg, #a78bfa, #38bdf8);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      margin-bottom: 0.3rem;
+    /* ─── Search ─── */
+    .search-shell {
+      position: sticky; top: 0; z-index: 50;
+      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
+      padding: 1.5rem 1.5rem 2rem;
     }
-    header p { color: var(--text-muted); font-size: 1rem; }
-
-    .container { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.75rem; }
-
-    /* Search */
     .search-box {
-      display: flex; gap: 0.75rem; align-items: center;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 0.9rem 1.25rem;
+      max-width: 640px; margin: 0 auto;
+      display: flex; gap: 0.6rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+      padding: 0.5rem 0.5rem 0.5rem 1.4rem;
+      transition: border-color 0.3s;
     }
+    .search-box:focus-within { border-color: var(--accent); }
     .search-box input {
       flex: 1; background: transparent; border: none; outline: none;
-      font-size: 1.1rem; color: var(--text); font-family: inherit;
+      font-size: 1rem; color: var(--text); font-family: inherit; font-weight: 300;
     }
-    .search-box input::placeholder { color: #484f58; }
+    .search-box input::placeholder { color: var(--text-faint); }
     .search-box button {
-      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
-      border: none; border-radius: 10px; color: white;
-      font-size: 0.95rem; font-weight: 600; padding: 0.6rem 1.4rem;
-      cursor: pointer; font-family: inherit; transition: opacity 0.2s; white-space: nowrap;
+      background: var(--accent); color: var(--bg);
+      border: none; border-radius: 999px;
+      font-size: 0.9rem; font-weight: 600; padding: 0.55rem 1.4rem;
+      cursor: pointer; font-family: inherit;
+      transition: opacity 0.2s, transform 0.2s;
     }
-    .search-box button:hover { opacity: 0.85; }
-    .search-box button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .search-box button:hover { opacity: 0.9; }
+    .search-box button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Loading */
-    .loading { display: none; text-align: center; padding: 3.5rem 1rem; }
+    /* ─── Loading / Error ─── */
+    .loading { display: none; text-align: center; padding: 6rem 1rem 4rem; }
     .loading.visible { display: block; }
     .spinner {
-      width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: #7c3aed;
-      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+      width: 36px; height: 36px;
+      border: 1px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1.2s linear infinite;
+      margin: 0 auto 1.5rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading p { color: var(--text-muted); font-size: 0.95rem; }
+    .loading p { color: var(--text-muted); font-size: 0.95rem; font-weight: 300; }
 
-    /* Book page */
-    .book-page { display: none; flex-direction: column; gap: 1.5rem; }
-    .book-page.visible { display: flex; }
+    .error-banner {
+      max-width: 640px; margin: 2rem auto;
+      background: rgba(248,113,113,0.05);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      color: #f5a3a3; font-size: 0.95rem; text-align: center;
+    }
 
-    /* Hero header */
-    .book-hero {
-      background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%);
-      border: 1px solid var(--border); border-radius: 20px; padding: 2rem;
-      display: flex; gap: 1.75rem; align-items: flex-start;
+    /* ─── Intro / Welcome ─── */
+    .welcome {
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+      max-width: 640px; margin: 0 auto;
     }
-    .book-cover-wrap { flex-shrink: 0; }
-    .book-cover-wrap img { width: 110px; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); display: block; }
-    .cover-ph {
-      width: 110px; height: 155px; border-radius: 8px; background: linear-gradient(135deg,#1f2d3d,#2d3748);
-      display: flex; align-items: center; justify-content: center; font-size: 3rem;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    .welcome h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 300;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      color: var(--text);
     }
-    .book-hero-meta { flex: 1; }
-    .book-hero-title { font-size: 1.9rem; font-weight: 800; line-height: 1.2; margin-bottom: 0.3rem; }
-    .book-hero-author { font-size: 1rem; color: var(--accent); font-weight: 500; margin-bottom: 0.5rem; }
-    .book-hero-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
-    .book-oneliner {
-      font-size: 1.1rem; color: var(--text-dim); line-height: 1.6; font-weight: 400;
-      border-right: 3px solid #7c3aed; padding-right: 1rem; margin-bottom: 1rem;
+    .welcome h1 em {
+      font-style: italic; color: var(--accent);
+      font-weight: 400;
     }
-    .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-    .tag { background: #21262d; border: 1px solid var(--border); border-radius: 20px; padding: 0.15rem 0.65rem; font-size: 0.75rem; color: var(--text-muted); }
+    .welcome p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.8;
+      font-weight: 300;
+    }
 
-    /* Section card */
-    .section-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
-    }
-    .section-header {
-      padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--text-muted);
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .section-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-    .section-body { padding: 1.75rem; }
+    /* ─── Page wrapper ─── */
+    .book-page { display: none; }
+    .book-page.visible { display: block; }
 
-    /* Overview */
-    .overview-text { font-size: 1.05rem; line-height: 1.95; color: var(--text-dim); }
-
-    /* Characters / Concepts grid */
-    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
-    .char-card {
-      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 14px;
-      padding: 1.1rem 1.2rem;
+    .stage {
+      max-width: 720px; margin: 0 auto;
+      padding: 7rem 1.75rem;
+      position: relative;
     }
-    .char-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.2rem; }
-    .char-role { font-size: 0.78rem; color: var(--accent); font-weight: 600; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .char-desc { font-size: 0.92rem; color: var(--text-muted); line-height: 1.7; }
+    .stage-narrow { max-width: 580px; }
+    .stage-wide { max-width: 880px; }
 
-    /* Story Arc timeline */
-    .arc-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
-    .arc-timeline {
-      display: flex; align-items: flex-start; gap: 0;
-      min-width: max-content; direction: ltr;
+    /* Reveal on scroll */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 1.1s cubic-bezier(.2,.7,.2,1), transform 1.1s cubic-bezier(.2,.7,.2,1);
     }
-    .arc-step { display: flex; flex-direction: column; align-items: center; width: 160px; }
-    .arc-node-row { display: flex; align-items: center; width: 100%; }
-    .arc-node {
-      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    .reveal.in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-d1 { transition-delay: 0.15s; }
+    .reveal-d2 { transition-delay: 0.3s; }
+    .reveal-d3 { transition-delay: 0.45s; }
+    .reveal-d4 { transition-delay: 0.6s; }
+
+    /* ─── Hero (title only) ─── */
+    .hero {
+      min-height: 88vh;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: flex-start;
+      padding: 4rem 1.75rem;
+      max-width: 880px; margin: 0 auto;
+    }
+    .hero-eyebrow {
+      font-size: 0.78rem;
+      letter-spacing: 0.3em;
+      color: var(--text-faint);
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+    }
+    .hero-title {
+      font-family: var(--serif);
+      font-size: clamp(3rem, 9vw, 6.5rem);
+      font-weight: 400;
+      line-height: 1.0;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+    }
+    .hero-meta {
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+    }
+    .hero-meta span + span:before {
+      content: '·';
+      margin: 0 0.7rem;
+      color: var(--text-faint);
+    }
+
+    /* ─── Opening line (the heart) ─── */
+    .opening-line {
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 3.4vw, 2.4rem);
+      font-weight: 300;
+      line-height: 1.45;
+      color: var(--text);
+      letter-spacing: -0.005em;
+    }
+    .opening-line .accent {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    /* ─── What it changes ─── */
+    .change-eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.32em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+    .change-list {
+      list-style: none;
+      display: flex; flex-direction: column;
+      gap: 1.25rem;
+    }
+    .change-item {
+      display: flex; gap: 1.5rem; align-items: baseline;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 1.15rem;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-dim);
+    }
+    .change-item:last-child { border-bottom: none; }
+    .change-num {
+      font-family: var(--serif);
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 400;
+      min-width: 1.5rem;
+      opacity: 0.85;
+    }
+
+    /* ─── Idea map ─── */
+    .map-eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.32em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .map-wrap {
+      width: 100%;
+      aspect-ratio: 1.4 / 1;
+      max-height: 480px;
+      position: relative;
+    }
+    .map-wrap svg { width: 100%; height: 100%; display: block; }
+    .map-node-central {
+      font-family: var(--serif);
+      font-size: 16px; font-weight: 400;
+      fill: var(--accent);
+    }
+    .map-node-branch {
+      font-size: 12px; font-weight: 300;
+      fill: var(--text-dim);
+    }
+    .map-node-tension {
+      font-size: 10px; font-weight: 300;
+      fill: var(--text-faint);
+      font-style: italic;
+    }
+    .map-line { stroke: var(--border); stroke-width: 1; }
+    .map-line-tension { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.5; }
+    .map-circle-central { fill: var(--bg-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .map-circle-branch { fill: var(--bg-soft); stroke: var(--border); stroke-width: 1; }
+
+    /* ─── Stage chapters ─── */
+    .stage-num {
+      font-family: var(--serif);
+      font-size: 0.85rem;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      font-weight: 400;
+    }
+    .stage-title {
+      font-family: var(--serif);
+      font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+      font-weight: 400;
+      line-height: 1.25;
+      color: var(--text);
+      margin-bottom: 3.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    .body-text {
+      font-size: 1.08rem;
+      line-height: 1.95;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    .sub-eyebrow {
+      font-size: 0.7rem;
+      letter-spacing: 0.32em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-bottom: 0.9rem;
+      font-weight: 500;
+    }
+
+    .block { margin-top: 3rem; }
+
+    .pull {
+      font-family: var(--serif);
+      font-size: 1.4rem;
+      line-height: 1.55;
+      color: var(--text);
+      padding: 2rem 0 2rem 1.5rem;
+      border-right: 2px solid var(--accent);
+      margin: 1rem 0;
+      font-style: italic;
+      font-weight: 300;
+    }
+
+    /* Beliefs list */
+    .belief {
+      padding: 2rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .belief:last-child { border-bottom: none; }
+    .belief-head {
+      font-family: var(--serif);
+      font-size: 1.25rem;
+      color: var(--text);
+      margin-bottom: 1rem;
+      font-weight: 400;
+      line-height: 1.35;
+    }
+    .belief-row {
+      display: flex; gap: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+    .belief-tag {
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      min-width: 5.5rem;
+      padding-top: 0.18rem;
+      opacity: 0.8;
+    }
+
+    /* What cracks - chips */
+    .cracks {
+      display: flex; flex-direction: column; gap: 0.85rem;
+    }
+    .crack {
+      display: flex; gap: 1.25rem; align-items: baseline;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .crack:last-child { border-bottom: none; }
+    .crack-domain {
+      font-family: var(--serif);
+      font-size: 1rem;
+      color: var(--accent);
+      font-weight: 500;
+      min-width: 7rem;
+      flex-shrink: 0;
+    }
+    .crack-shift {
+      color: var(--text-dim);
+      font-size: 1rem;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    /* Big idea */
+    .big-idea {
+      font-family: var(--serif);
+      font-size: clamp(1.7rem, 4.2vw, 2.8rem);
+      line-height: 1.4;
+      color: var(--text);
+      text-align: center;
+      padding: 3rem 0;
+      font-weight: 300;
+      letter-spacing: -0.01em;
+    }
+    .big-idea .accent { color: var(--accent); }
+
+    .examples {
+      display: flex; flex-direction: column; gap: 1.5rem;
+    }
+    .example {
+      padding: 1.5rem 1.75rem;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+    }
+    .example-type {
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.7rem;
+      font-weight: 500;
+      opacity: 0.85;
+    }
+    .example-text {
+      font-size: 1rem;
+      line-height: 1.75;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    /* Where hard */
+    .obstacles {
+      display: grid; grid-template-columns: 1fr; gap: 1.25rem;
+    }
+    .obstacle {
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .obstacle:last-child { border-bottom: none; }
+    .obstacle-name {
+      font-family: var(--serif);
+      font-size: 1.15rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      font-weight: 400;
+    }
+    .obstacle-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    .unspoken {
+      font-family: var(--serif);
+      font-size: 1.3rem;
+      line-height: 1.6;
+      color: var(--text);
+      padding: 2rem 0;
+      font-style: italic;
+      font-weight: 300;
+      letter-spacing: -0.005em;
+    }
+    .patterns {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 0.6rem;
+      padding-top: 1rem;
+    }
+    .patterns li {
+      padding: 0.85rem 0;
+      border-bottom: 1px dashed var(--border-subtle);
+      color: var(--text-dim);
+      font-size: 0.98rem;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+    .patterns li:last-child { border-bottom: none; }
+    .patterns li:before {
+      content: '— ';
+      color: var(--accent);
+      margin-left: 0.4rem;
+    }
+
+    /* Shifts in domains */
+    .shifts {
+      display: flex; flex-direction: column;
+      gap: 0; margin-top: 1rem;
+    }
+    .shift {
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 1.5rem;
+      align-items: baseline;
+    }
+    .shift:last-child { border-bottom: none; }
+    .shift-domain {
+      font-family: var(--serif);
+      font-size: 0.95rem;
+      color: var(--accent);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      min-width: 5rem;
+      flex-shrink: 0;
+    }
+    .shift-change {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    /* Before / After */
+    .ba-table {
+      margin-top: 1rem;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .ba-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .ba-row:last-child { border-bottom: none; }
+    .ba-before, .ba-after {
+      font-size: 1rem;
+      line-height: 1.5;
+      font-weight: 300;
+    }
+    .ba-before {
+      color: var(--text-faint);
+      text-align: right;
+    }
+    .ba-after {
+      color: var(--text);
+    }
+    .ba-arrow {
+      color: var(--accent);
+      font-size: 0.95rem;
+      letter-spacing: -0.05em;
+    }
+
+    /* Hidden mechanism */
+    .mechanism {
+      background: linear-gradient(180deg, transparent 0%, rgba(212,165,116,0.04) 50%, transparent 100%);
+      padding: 8rem 0;
+      margin: 4rem 0;
+    }
+    .mechanism-inner {
+      max-width: 640px; margin: 0 auto; padding: 0 1.75rem;
+    }
+    .mechanism-eyebrow {
+      font-family: var(--serif);
+      font-size: 0.85rem;
+      letter-spacing: 0.32em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .mech-block {
+      padding: 2.5rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .mech-block:last-child { border-bottom: none; }
+    .mech-q {
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 0.85rem;
+      font-weight: 500;
+    }
+    .mech-a {
+      font-family: var(--serif);
+      font-size: 1.4rem;
+      line-height: 1.5;
+      color: var(--text);
+      font-weight: 300;
+      letter-spacing: -0.005em;
+    }
+    .mech-a.unspoken-final {
+      font-style: italic;
+      color: var(--accent);
+      font-size: 1.55rem;
+    }
+
+    /* Closing */
+    .closing {
+      min-height: 70vh;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: white;
-      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
-      position: relative; z-index: 1;
+      text-align: center;
+      padding: 6rem 1.75rem;
     }
-    .arc-line { flex: 1; height: 2px; background: linear-gradient(90deg, #7c3aed, #0ea5e9); opacity: 0.4; }
-    .arc-step:last-child .arc-line { display: none; }
-    .arc-content { margin-top: 0.7rem; text-align: center; padding: 0 0.5rem; }
-    .arc-phase { font-size: 0.78rem; font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .arc-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+    .closing-text {
+      font-family: var(--serif);
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 300;
+      line-height: 1.55;
+      color: var(--text-dim);
+      max-width: 540px;
+      letter-spacing: -0.005em;
+    }
 
-    /* Themes */
-    .themes-list { display: flex; flex-direction: column; gap: 1.1rem; }
-    .theme-item {
-      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 14px;
-      padding: 1.2rem 1.4rem; display: flex; gap: 1rem; align-items: flex-start;
+    /* ─── Chat ─── */
+    .chat {
+      max-width: 720px; margin: 0 auto;
+      padding: 4rem 1.75rem 5rem;
+      display: none;
     }
-    .theme-icon {
-      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
-      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(14,165,233,0.25));
-      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+    .chat.visible { display: block; }
+    .chat-eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.32em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+      text-align: center;
     }
-    .theme-body { flex: 1; }
-    .theme-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; }
-    .theme-explanation { font-size: 0.95rem; color: var(--text-muted); line-height: 1.75; }
-
-    /* Quotes */
-    .quotes-list { display: flex; flex-direction: column; gap: 1rem; }
-    .quote-item {
-      background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(14,165,233,0.06));
-      border: 1px solid rgba(124,58,237,0.25); border-radius: 14px; padding: 1.2rem 1.5rem;
-    }
-    .quote-mark { font-size: 2rem; color: var(--accent); line-height: 1; margin-bottom: 0.3rem; opacity: 0.6; }
-    .quote-text { font-size: 1.05rem; color: var(--text-dim); font-style: italic; line-height: 1.7; margin-bottom: 0.6rem; }
-    .quote-context { font-size: 0.85rem; color: var(--text-muted); }
-
-    /* Takeaways */
-    .takeaways-list { display: flex; flex-direction: column; gap: 0.75rem; }
-    .takeaway-item {
-      display: flex; gap: 0.9rem; align-items: flex-start;
-      background: #0d1117; border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem 1.25rem;
-    }
-    .takeaway-num {
-      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: white;
-    }
-    .takeaway-text { font-size: 0.97rem; color: var(--text-dim); line-height: 1.6; padding-top: 0.15rem; }
-
-    /* Chat */
-    .chat-card {
-      display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
-    }
-    .chat-card.visible { display: block; }
     .chat-title {
-      padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
-      display: flex; align-items: center; gap: 0.5rem;
+      font-family: var(--serif);
+      font-size: 1.6rem;
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 2.5rem;
+      font-weight: 400;
     }
-    .chat-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-    .chat-messages { display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto; padding: 1.5rem; }
-    .chat-messages::-webkit-scrollbar { width: 4px; }
-    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    .msg { max-width: 78%; padding: 0.85rem 1.1rem; border-radius: 16px; line-height: 1.75; font-size: 0.97rem; white-space: pre-wrap; }
-    .msg.user { background: linear-gradient(135deg, #6d28d9, #0284c7); color: white; align-self: flex-end; border-bottom-left-radius: 4px; }
-    .msg.ai { background: #1f2937; color: var(--text-dim); align-self: flex-start; border-bottom-right-radius: 4px; border: 1px solid var(--border); }
-    @keyframes dotBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
-    .typing-dots { display: flex; gap: 5px; align-items: center; }
-    .typing-dots span { width: 7px; height: 7px; background: #7c3aed; border-radius: 50%; animation: dotBounce 1.2s ease-in-out infinite; }
-    .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
-    .chat-input-row { display: flex; gap: 0.6rem; padding: 1rem 1.5rem; border-top: 1px solid var(--border-subtle); }
-    .chat-input-row input {
-      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
-      padding: 0.7rem 1rem; color: var(--text); font-size: 0.97rem; outline: none; font-family: inherit; transition: border-color 0.2s;
+    .chat-msgs {
+      display: flex; flex-direction: column; gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      min-height: 60px;
     }
-    .chat-input-row input:focus { border-color: #7c3aed; }
-    .chat-input-row input::placeholder { color: #484f58; }
-    .chat-input-row button { background: #7c3aed; border: none; border-radius: 12px; color: white; padding: 0.7rem 1.2rem; cursor: pointer; font-size: 1.1rem; transition: background 0.2s; }
-    .chat-input-row button:hover { background: #6d28d9; }
-    .chat-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg {
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      font-size: 0.98rem;
+      line-height: 1.7;
+      max-width: 85%;
+      font-weight: 300;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      align-self: flex-start;
+      background: var(--accent-dim);
+      color: var(--text);
+      border: 1px solid rgba(212,165,116,0.25);
+    }
+    .msg.ai {
+      align-self: flex-end;
+      background: var(--surface);
+      color: var(--text-dim);
+      border: 1px solid var(--border-subtle);
+    }
+    .typing-dots {
+      display: inline-flex; gap: 4px; align-items: center;
+    }
+    .typing-dots span {
+      width: 5px; height: 5px;
+      background: var(--text-faint);
+      border-radius: 50%;
+      animation: pulse 1.3s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%, 60%, 100% { opacity: 0.3; transform: scale(0.85); }
+      30% { opacity: 1; transform: scale(1); }
+    }
 
-    .error-banner { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 12px; padding: 1rem 1.25rem; color: #f87171; font-size: 0.9rem; }
+    .chat-input-row {
+      display: flex; gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.5rem 0.5rem 0.5rem 1.4rem;
+      transition: border-color 0.3s;
+    }
+    .chat-input-row:focus-within { border-color: var(--accent); }
+    .chat-input-row input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-size: 0.98rem; color: var(--text); font-family: inherit; font-weight: 300;
+    }
+    .chat-input-row input::placeholder { color: var(--text-faint); }
+    .chat-input-row button {
+      background: var(--accent); color: var(--bg);
+      border: none; border-radius: 999px;
+      font-size: 0.9rem; font-weight: 600; padding: 0.5rem 1.2rem;
+      cursor: pointer; font-family: inherit;
+    }
+    .chat-input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    @media (max-width: 600px) {
+      .stage { padding: 5rem 1.25rem; }
+      .hero { padding: 3rem 1.25rem; min-height: 75vh; }
+      .ba-row { grid-template-columns: 1fr; gap: 0.4rem; }
+      .ba-before, .ba-after { text-align: right; }
+      .ba-arrow { transform: rotate(-90deg); }
+      .shift, .crack { flex-direction: column; gap: 0.5rem; }
+      .shift-domain, .crack-domain { min-width: auto; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>📚 סייר הספרים</h1>
-    <p>סיכום מעמיק + שאל שאלות</p>
-  </header>
-
-  <div class="container">
+  <div class="search-shell">
     <div class="search-box">
       <input type="text" id="bookInput" placeholder="שם הספר..." autofocus>
-      <button id="searchBtn" onclick="startBook()">חפש ספר</button>
+      <button id="searchBtn" onclick="startBook()">חפש</button>
     </div>
+  </div>
 
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
-      <p>בונה סיכום מעמיק...</p>
-    </div>
+  <div class="welcome" id="welcome">
+    <h1>לא תקציר. <em>מסע תודעתי.</em></h1>
+    <p>הקלד שם של ספר. תקבל לא רשימת רעיונות, אלא דרך לעבור דרכם.</p>
+  </div>
 
-    <div id="errorBanner" style="display:none"></div>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>נכנס לתוך הספר...</p>
+  </div>
 
-    <div class="book-page" id="bookPage">
+  <div id="errorBanner" class="error-banner" style="display:none"></div>
 
-      <!-- Hero -->
-      <div class="book-hero">
-        <div class="book-cover-wrap" id="heroCover"></div>
-        <div class="book-hero-meta">
-          <div class="book-hero-title" id="heroTitle"></div>
-          <div class="book-hero-author" id="heroAuthor"></div>
-          <div class="book-hero-info" id="heroInfo"></div>
-          <div class="book-oneliner" id="heroOneLiner"></div>
-          <div class="tags" id="heroTags"></div>
+  <div class="book-page" id="bookPage">
+
+    <!-- Hero: title only -->
+    <section class="hero">
+      <div class="hero-eyebrow reveal" id="heroEyebrow">ספר</div>
+      <h1 class="hero-title reveal reveal-d1" id="heroTitle"></h1>
+      <div class="hero-meta reveal reveal-d2" id="heroMeta"></div>
+    </section>
+
+    <!-- Opening line -->
+    <section class="stage stage-narrow">
+      <div class="opening-line reveal" id="openingLine"></div>
+    </section>
+
+    <!-- What it changes -->
+    <section class="stage stage-narrow">
+      <div class="change-eyebrow reveal">מה הספר באמת מנסה לשנות</div>
+      <ul class="change-list reveal reveal-d1" id="changeList"></ul>
+    </section>
+
+    <!-- Idea map -->
+    <section class="stage stage-wide" id="secMap">
+      <div class="map-eyebrow reveal">מפת הרעיונות</div>
+      <div class="map-wrap reveal reveal-d1" id="mapWrap"></div>
+    </section>
+
+    <!-- Stage 1: Problem -->
+    <section class="stage" id="sec1">
+      <div class="stage-num reveal">01 — הבעיה</div>
+      <h2 class="stage-title reveal reveal-d1" id="s1Title"></h2>
+      <div class="reveal reveal-d2">
+        <div class="sub-eyebrow">מה אנשים מפספסים</div>
+        <p class="body-text" id="s1Miss"></p>
+      </div>
+      <div class="block reveal reveal-d3">
+        <div class="sub-eyebrow">האשליה המרכזית</div>
+        <div class="pull" id="s1Illusion"></div>
+      </div>
+      <div class="block reveal reveal-d4">
+        <div class="sub-eyebrow">למה זה חשוב</div>
+        <p class="body-text" id="s1Why"></p>
+      </div>
+    </section>
+
+    <!-- Stage 2: Breaking -->
+    <section class="stage" id="sec2">
+      <div class="stage-num reveal">02 — פירוק</div>
+      <h2 class="stage-title reveal reveal-d1" id="s2Title"></h2>
+      <div class="reveal reveal-d2">
+        <div class="sub-eyebrow">אמונות שמתפרקות</div>
+        <div id="s2Beliefs"></div>
+      </div>
+      <div class="block reveal reveal-d3">
+        <div class="sub-eyebrow">מה מתחיל להיסדק</div>
+        <div class="cracks" id="s2Cracks"></div>
+      </div>
+    </section>
+
+    <!-- Stage 3: Big Idea -->
+    <section class="stage stage-narrow" id="sec3">
+      <div class="stage-num reveal">03 — הרעיון הגדול</div>
+      <h2 class="stage-title reveal reveal-d1" id="s3Title"></h2>
+      <div class="big-idea reveal reveal-d2" id="s3Core"></div>
+      <div class="block reveal reveal-d3">
+        <div class="sub-eyebrow">למה זה משנה הכל</div>
+        <p class="body-text" id="s3Why"></p>
+      </div>
+      <div class="block reveal reveal-d4">
+        <div class="sub-eyebrow">איך זה נראה בחיים</div>
+        <div class="examples" id="s3Examples"></div>
+      </div>
+    </section>
+
+    <!-- Stage 4: Reality -->
+    <section class="stage" id="sec4">
+      <div class="stage-num reveal">04 — ההתנגשות</div>
+      <h2 class="stage-title reveal reveal-d1" id="s4Title"></h2>
+      <div class="reveal reveal-d2">
+        <div class="sub-eyebrow">איפה קשה ליישם</div>
+        <div class="obstacles" id="s4Obstacles"></div>
+      </div>
+      <div class="block reveal reveal-d3">
+        <div class="sub-eyebrow">מה לא נאמר ישירות</div>
+        <div class="unspoken" id="s4Unspoken"></div>
+      </div>
+      <div class="block reveal reveal-d4">
+        <div class="sub-eyebrow">דפוסים שחוזרים</div>
+        <ul class="patterns" id="s4Patterns"></ul>
+      </div>
+    </section>
+
+    <!-- Stage 5: Shift -->
+    <section class="stage" id="sec5">
+      <div class="stage-num reveal">05 — שינוי תודעה</div>
+      <h2 class="stage-title reveal reveal-d1" id="s5Title"></h2>
+      <div class="reveal reveal-d2">
+        <div class="sub-eyebrow">מה נראה אחרת</div>
+        <div class="shifts" id="s5Shifts"></div>
+      </div>
+      <div class="block reveal reveal-d3">
+        <div class="sub-eyebrow">לפני · אחרי</div>
+        <div class="ba-table" id="s5BA"></div>
+      </div>
+    </section>
+
+    <!-- Hidden mechanism -->
+    <section class="mechanism" id="secMech">
+      <div class="mechanism-inner">
+        <div class="mechanism-eyebrow reveal">המנגנון הסמוי</div>
+        <div class="mech-block reveal reveal-d1">
+          <div class="mech-q">מה באמת מניע את הספר</div>
+          <div class="mech-a" id="mechDrives"></div>
+        </div>
+        <div class="mech-block reveal reveal-d2">
+          <div class="mech-q">איזה פחד מתחת לרעיונות</div>
+          <div class="mech-a" id="mechFear"></div>
+        </div>
+        <div class="mech-block reveal reveal-d3">
+          <div class="mech-q">איזה צורך אנושי הוא פותר</div>
+          <div class="mech-a" id="mechNeed"></div>
+        </div>
+        <div class="mech-block reveal reveal-d4">
+          <div class="mech-q">המשפט שהספר אומר בלי להגיד</div>
+          <div class="mech-a unspoken-final" id="mechUnspoken"></div>
         </div>
       </div>
+    </section>
 
-      <!-- Overview -->
-      <div class="section-card" id="secOverview">
-        <div class="section-header"><span class="dot"></span>סקירה כללית</div>
-        <div class="section-body">
-          <div class="overview-text" id="overviewText"></div>
-        </div>
-      </div>
+    <!-- Closing -->
+    <section class="closing">
+      <div class="closing-text reveal" id="closingText"></div>
+    </section>
 
-      <!-- Characters -->
-      <div class="section-card" id="secChars">
-        <div class="section-header"><span class="dot" style="background:#38bdf8"></span><span id="charsTitle">הדמויות</span></div>
-        <div class="section-body">
-          <div class="cards-grid" id="charsGrid"></div>
-        </div>
-      </div>
+  </div>
 
-      <!-- Story Arc -->
-      <div class="section-card" id="secArc">
-        <div class="section-header"><span class="dot" style="background:#3fb950"></span>מסע העלילה</div>
-        <div class="section-body">
-          <div class="arc-wrap">
-            <div class="arc-timeline" id="arcTimeline"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Themes -->
-      <div class="section-card" id="secThemes">
-        <div class="section-header"><span class="dot" style="background:#d29922"></span>הנושאים המרכזיים</div>
-        <div class="section-body">
-          <div class="themes-list" id="themesList"></div>
-        </div>
-      </div>
-
-      <!-- Quotes -->
-      <div class="section-card" id="secQuotes">
-        <div class="section-header"><span class="dot" style="background:#f0883e"></span>ציטוטים שנשארים</div>
-        <div class="section-body">
-          <div class="quotes-list" id="quotesList"></div>
-        </div>
-      </div>
-
-      <!-- Takeaways -->
-      <div class="section-card" id="secTakeaways">
-        <div class="section-header"><span class="dot" style="background:#58a6ff"></span>מה לוקחים מהספר</div>
-        <div class="section-body">
-          <div class="takeaways-list" id="takeawaysList"></div>
-        </div>
-      </div>
-
-    </div><!-- end book-page -->
-
-    <!-- Chat -->
-    <div class="chat-card" id="chatCard">
-      <div class="chat-title"><span class="dot"></span>שאל שאלה על הספר</div>
-      <div class="chat-messages" id="chatMessages"></div>
-      <div class="chat-input-row">
-        <input type="text" id="chatInput" placeholder="שאל שאלה..." onkeydown="if(event.key==='Enter')sendQuestion()">
-        <button id="sendBtn" onclick="sendQuestion()">שלח ➤</button>
-      </div>
+  <!-- Chat -->
+  <div class="chat" id="chatCard">
+    <div class="chat-eyebrow">המשך שיחה</div>
+    <div class="chat-title">שאל את הספר</div>
+    <div class="chat-msgs" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="שאלה..." onkeydown="if(event.key==='Enter')sendQuestion()">
+      <button id="sendBtn" onclick="sendQuestion()">שלח</button>
     </div>
   </div>
 
@@ -321,17 +851,33 @@
     let currentBook = '';
     let summaryContext = '';
     let isStreaming = false;
-
-    const THEME_ICONS = ['💡','🎭','⚖️','❤️','🌊','🔥','🧠','🌍','👁','⏳','🪞','🗝️'];
+    let revealObserver = null;
 
     function esc(s) {
       return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+    function $(id) { return document.getElementById(id); }
+    function hide(id) { const el = $(id); if (el) el.style.display = 'none'; }
+    function show(id) { const el = $(id); if (el) el.style.display = ''; }
 
-    function hide(id) { document.getElementById(id).style.display = 'none'; }
+    function setupReveals() {
+      if (revealObserver) revealObserver.disconnect();
+      revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            revealObserver.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
+      document.querySelectorAll('.reveal').forEach(el => {
+        el.classList.remove('in');
+        revealObserver.observe(el);
+      });
+    }
 
     async function startBook() {
-      const input = document.getElementById('bookInput');
+      const input = $('bookInput');
       const book = input.value.trim();
       if (!book || isStreaming) return;
 
@@ -339,12 +885,13 @@
       summaryContext = '';
       isStreaming = true;
 
-      document.getElementById('searchBtn').disabled = true;
-      document.getElementById('loading').classList.add('visible');
-      document.getElementById('bookPage').classList.remove('visible');
-      document.getElementById('chatCard').classList.remove('visible');
-      document.getElementById('errorBanner').style.display = 'none';
-      document.getElementById('chatMessages').innerHTML = '';
+      $('searchBtn').disabled = true;
+      $('welcome').style.display = 'none';
+      $('loading').classList.add('visible');
+      $('bookPage').classList.remove('visible');
+      $('chatCard').classList.remove('visible');
+      $('errorBanner').style.display = 'none';
+      $('chatMessages').innerHTML = '';
 
       try {
         const res = await fetch('/api/summary', {
@@ -353,129 +900,242 @@
           body: JSON.stringify({ book })
         });
         const data = await res.json();
-        document.getElementById('loading').classList.remove('visible');
+        $('loading').classList.remove('visible');
 
         if (data.error) {
-          const b = document.getElementById('errorBanner');
-          b.textContent = data.error;
-          b.style.display = 'block';
+          $('errorBanner').textContent = data.error;
+          $('errorBanner').style.display = 'block';
+          $('welcome').style.display = '';
         } else {
           renderBook(data);
-          document.getElementById('bookPage').classList.add('visible');
-          document.getElementById('chatCard').classList.add('visible');
-          document.getElementById('chatInput').focus();
+          $('bookPage').classList.add('visible');
+          $('chatCard').classList.add('visible');
+          window.scrollTo({ top: 0, behavior: 'instant' });
+          setTimeout(setupReveals, 30);
         }
       } catch (err) {
-        document.getElementById('loading').classList.remove('visible');
-        const b = document.getElementById('errorBanner');
-        b.textContent = 'שגיאה: ' + err.message;
-        b.style.display = 'block';
+        $('loading').classList.remove('visible');
+        $('errorBanner').textContent = 'שגיאה: ' + err.message;
+        $('errorBanner').style.display = 'block';
+        $('welcome').style.display = '';
       }
 
       isStreaming = false;
-      document.getElementById('searchBtn').disabled = false;
+      $('searchBtn').disabled = false;
     }
 
     function renderBook(d) {
-      // Cover
-      const coverEl = document.getElementById('heroCover');
-      if (d.cover) {
-        coverEl.innerHTML = `<img src="${esc(d.cover)}" alt="כריכה" onerror="this.parentElement.innerHTML='<div class=cover-ph>📖</div>'">`;
-      } else {
-        coverEl.innerHTML = `<div class="cover-ph">📖</div>`;
+      // Hero
+      $('heroTitle').textContent = d.title || currentBook;
+      const metaParts = [];
+      if (d.authors) metaParts.push(d.authors);
+      if (d.year) metaParts.push(d.year);
+      if (d.pageCount) metaParts.push(`${d.pageCount} עמ׳`);
+      $('heroMeta').innerHTML = metaParts.map(p => `<span>${esc(p)}</span>`).join('');
+
+      // Opening line
+      if (d.openingLine) {
+        $('openingLine').innerHTML = highlightOpening(d.openingLine);
       }
 
-      document.getElementById('heroTitle').textContent = d.title || '';
-      document.getElementById('heroAuthor').textContent = d.authors ? `מאת ${d.authors}` : '';
-      const info = [d.year, d.pageCount ? `${d.pageCount} עמודים` : null].filter(Boolean).join(' · ');
-      document.getElementById('heroInfo').textContent = info;
-      document.getElementById('heroOneLiner').textContent = d.oneLiner || '';
+      // What it changes
+      const changeList = $('changeList');
+      changeList.innerHTML = (d.whatItChanges || []).map((item, i) =>
+        `<li class="change-item"><span class="change-num">${String(i+1).padStart(2,'0')}</span><span>${esc(item)}</span></li>`
+      ).join('');
 
-      const tagsEl = document.getElementById('heroTags');
-      tagsEl.innerHTML = (d.subjects||[]).map(s => `<span class="tag">${esc(s)}</span>`).join('');
+      // Idea map
+      if (d.ideaMap?.central && d.ideaMap?.branches?.length) {
+        renderIdeaMap(d.ideaMap);
+      } else { hide('secMap'); }
 
-      // Overview
-      document.getElementById('overviewText').textContent = d.overview || '';
+      // Stage 1
+      const s1 = d.stage1_problem || {};
+      $('s1Title').textContent = s1.title || '';
+      $('s1Miss').textContent = s1.whatPeopleMiss || '';
+      $('s1Illusion').textContent = s1.centralIllusion || '';
+      $('s1Why').textContent = s1.whyItMatters || '';
+      if (!s1.title && !s1.whatPeopleMiss) hide('sec1');
 
-      // Characters
-      const grid = document.getElementById('charsGrid');
-      const chars = d.characters || [];
-      if (chars.length) {
-        grid.innerHTML = chars.map(c => `
-          <div class="char-card">
-            <div class="char-name">${esc(c.name)}</div>
-            <div class="char-role">${esc(c.role)}</div>
-            <div class="char-desc">${esc(c.description)}</div>
-          </div>`).join('');
-      } else { hide('secChars'); }
+      // Stage 2
+      const s2 = d.stage2_breaking || {};
+      $('s2Title').textContent = s2.title || '';
+      $('s2Beliefs').innerHTML = (s2.beliefsAttacked || []).map(b => `
+        <div class="belief">
+          <div class="belief-head">${esc(b.belief || '')}</div>
+          <div class="belief-row"><span class="belief-tag">למה קיימת</span><span>${esc(b.whyExists || '')}</span></div>
+          <div class="belief-row"><span class="belief-tag">מה מגביל</span><span>${esc(b.whyLimiting || '')}</span></div>
+        </div>
+      `).join('');
+      $('s2Cracks').innerHTML = (s2.whatCracks || []).map(c => `
+        <div class="crack">
+          <div class="crack-domain">${esc(c.domain || '')}</div>
+          <div class="crack-shift">${esc(c.shift || '')}</div>
+        </div>
+      `).join('');
+      if (!s2.title && !s2.beliefsAttacked?.length) hide('sec2');
 
-      // Arc
-      const arc = d.arc || [];
-      if (arc.length) {
-        document.getElementById('arcTimeline').innerHTML = arc.map((step, i) => `
-          <div class="arc-step">
-            <div class="arc-node-row">
-              <div class="arc-node">${i + 1}</div>
-              <div class="arc-line"></div>
-            </div>
-            <div class="arc-content">
-              <div class="arc-phase">${esc(step.phase)}</div>
-              <div class="arc-desc">${esc(step.description)}</div>
-            </div>
-          </div>`).join('');
-      } else { hide('secArc'); }
+      // Stage 3
+      const s3 = d.stage3_bigIdea || {};
+      $('s3Title').textContent = s3.title || '';
+      $('s3Core').textContent = s3.coreIdea || '';
+      $('s3Why').textContent = s3.whyItChangesEverything || '';
+      $('s3Examples').innerHTML = (s3.examples || []).map(e => `
+        <div class="example">
+          <div class="example-type">${esc(e.type || '')}</div>
+          <div class="example-text">${esc(e.text || '')}</div>
+        </div>
+      `).join('');
+      if (!s3.coreIdea) hide('sec3');
 
-      // Themes
-      const themes = d.themes || [];
-      if (themes.length) {
-        document.getElementById('themesList').innerHTML = themes.map((t, i) => `
-          <div class="theme-item">
-            <div class="theme-icon">${THEME_ICONS[i % THEME_ICONS.length]}</div>
-            <div class="theme-body">
-              <div class="theme-title">${esc(t.title)}</div>
-              <div class="theme-explanation">${esc(t.explanation)}</div>
-            </div>
-          </div>`).join('');
-      } else { hide('secThemes'); }
+      // Stage 4
+      const s4 = d.stage4_reality || {};
+      $('s4Title').textContent = s4.title || '';
+      $('s4Obstacles').innerHTML = (s4.whereHard || []).map(o => `
+        <div class="obstacle">
+          <div class="obstacle-name">${esc(o.obstacle || '')}</div>
+          <div class="obstacle-desc">${esc(o.description || '')}</div>
+        </div>
+      `).join('');
+      $('s4Unspoken').textContent = s4.unspoken || '';
+      $('s4Patterns').innerHTML = (s4.patterns || []).map(p => `<li>${esc(p)}</li>`).join('');
+      if (!s4.title && !s4.whereHard?.length) hide('sec4');
 
-      // Quotes
-      const quotes = d.quotes || [];
-      if (quotes.length) {
-        document.getElementById('quotesList').innerHTML = quotes.map(q => `
-          <div class="quote-item">
-            <div class="quote-mark">"</div>
-            <div class="quote-text">${esc(q.text)}</div>
-            <div class="quote-context">${esc(q.context)}</div>
-          </div>`).join('');
-      } else { hide('secQuotes'); }
+      // Stage 5
+      const s5 = d.stage5_shift || {};
+      $('s5Title').textContent = s5.title || '';
+      $('s5Shifts').innerHTML = (s5.shifts || []).map(s => `
+        <div class="shift">
+          <div class="shift-domain">${esc(s.domain || '')}</div>
+          <div class="shift-change">${esc(s.change || '')}</div>
+        </div>
+      `).join('');
+      $('s5BA').innerHTML = (s5.beforeAfter || []).map(b => `
+        <div class="ba-row">
+          <div class="ba-before">${esc(b.before || '')}</div>
+          <div class="ba-arrow">←</div>
+          <div class="ba-after">${esc(b.after || '')}</div>
+        </div>
+      `).join('');
+      if (!s5.title && !s5.shifts?.length) hide('sec5');
 
-      // Takeaways
-      const tw = d.takeaways || [];
-      if (tw.length) {
-        document.getElementById('takeawaysList').innerHTML = tw.map((t, i) => `
-          <div class="takeaway-item">
-            <div class="takeaway-num">${i + 1}</div>
-            <div class="takeaway-text">${esc(t)}</div>
-          </div>`).join('');
-      } else { hide('secTakeaways'); }
+      // Hidden mechanism
+      const m = d.hiddenMechanism || {};
+      $('mechDrives').textContent = m.whatDrives || '';
+      $('mechFear').textContent = m.fearBeneath || '';
+      $('mechNeed').textContent = m.humanNeed || '';
+      $('mechUnspoken').textContent = m.unspokenSentence || '';
+      if (!m.whatDrives) hide('secMech');
 
+      // Closing
+      $('closingText').textContent = d.closing || '';
+
+      // Build context for chat
       summaryContext = [
-        d.overview,
-        (d.themes||[]).map(t => `${t.title}: ${t.explanation}`).join('\n'),
-        (d.takeaways||[]).join('\n')
+        d.openingLine,
+        s3.coreIdea,
+        s3.whyItChangesEverything,
+        m.unspokenSentence,
+        m.whatDrives,
+        (d.whatItChanges || []).join(' · '),
       ].filter(Boolean).join('\n\n');
     }
 
+    function highlightOpening(text) {
+      // Find " — " or "—" and italicize what comes after
+      const dashPattern = /(\s—\s|\s-\s)/;
+      const m = text.match(dashPattern);
+      if (m) {
+        const idx = text.indexOf(m[0]);
+        return esc(text.slice(0, idx)) + '<span class="accent">' + esc(text.slice(idx)) + '</span>';
+      }
+      return esc(text);
+    }
+
+    function renderIdeaMap({ central, branches }) {
+      const W = 800, H = 560;
+      const cx = W/2, cy = H/2;
+      const n = branches.length;
+      const radius = 200;
+      const nodes = branches.map((b, i) => {
+        const angle = (Math.PI * 2 * i / n) - Math.PI/2;
+        return {
+          ...b,
+          x: cx + Math.cos(angle) * radius,
+          y: cy + Math.sin(angle) * radius,
+        };
+      });
+
+      const lines = nodes.map(n => `
+        <line class="map-line" x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" />
+      `).join('');
+
+      const tensionLines = [];
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].tension && nodes[i].tension !== 'null') {
+          const j = (i + Math.floor(nodes.length/2)) % nodes.length;
+          tensionLines.push(`<line class="map-line-tension" x1="${nodes[i].x}" y1="${nodes[i].y}" x2="${nodes[j].x}" y2="${nodes[j].y}" />`);
+        }
+      }
+
+      const branchNodes = nodes.map(n => {
+        const labelLines = wrapLabel(n.name, 18);
+        const labelY = n.y + (labelLines.length === 1 ? 0 : -((labelLines.length-1) * 7));
+        const labels = labelLines.map((line, i) =>
+          `<tspan x="${n.x}" dy="${i === 0 ? 0 : 14}">${esc(line)}</tspan>`
+        ).join('');
+        const tensionLabel = (n.tension && n.tension !== 'null')
+          ? `<text class="map-node-tension" x="${n.x}" y="${n.y + 30 + (labelLines.length-1)*14}" text-anchor="middle">${esc(String(n.tension).slice(0, 26))}</text>`
+          : '';
+        return `
+          <circle class="map-circle-branch" cx="${n.x}" cy="${n.y}" r="48" />
+          <text class="map-node-branch" x="${n.x}" y="${labelY}" text-anchor="middle" dominant-baseline="middle">${labels}</text>
+          ${tensionLabel}
+        `;
+      }).join('');
+
+      const centralLines = wrapLabel(central, 14);
+      const centralLabel = centralLines.map((line, i) =>
+        `<tspan x="${cx}" dy="${i === 0 ? -((centralLines.length-1) * 9) : 18}">${esc(line)}</tspan>`
+      ).join('');
+
+      $('mapWrap').innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+          ${lines}
+          ${tensionLines.join('')}
+          ${branchNodes}
+          <circle class="map-circle-central" cx="${cx}" cy="${cy}" r="62" />
+          <text class="map-node-central" x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle">${centralLabel}</text>
+        </svg>
+      `;
+    }
+
+    function wrapLabel(text, maxChars) {
+      const words = String(text || '').split(' ');
+      const lines = [];
+      let cur = '';
+      for (const w of words) {
+        if ((cur + ' ' + w).trim().length > maxChars && cur) {
+          lines.push(cur.trim());
+          cur = w;
+        } else {
+          cur = (cur + ' ' + w).trim();
+        }
+      }
+      if (cur) lines.push(cur);
+      return lines.slice(0, 3);
+    }
+
     async function sendQuestion() {
-      const chatInput = document.getElementById('chatInput');
+      const chatInput = $('chatInput');
       const question = chatInput.value.trim();
       if (!question || isStreaming) return;
 
       isStreaming = true;
       chatInput.value = '';
-      document.getElementById('sendBtn').disabled = true;
+      $('sendBtn').disabled = true;
 
-      const messagesEl = document.getElementById('chatMessages');
+      const messagesEl = $('chatMessages');
       const userMsg = document.createElement('div');
       userMsg.className = 'msg user';
       userMsg.textContent = question;
@@ -485,45 +1145,50 @@
       aiMsg.className = 'msg ai';
       aiMsg.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
       messagesEl.appendChild(aiMsg);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      aiMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ book: currentBook, question, summaryContext })
-      });
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ book: currentBook, question, summaryContext })
+        });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '', aiContent = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '', aiContent = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const parsed = JSON.parse(line.slice(6).trim());
-            if (parsed.done) break;
-            if (parsed.text) {
-              if (aiMsg.querySelector('.typing-dots')) aiMsg.textContent = '';
-              aiContent += parsed.text;
-              aiMsg.textContent = aiContent;
-              messagesEl.scrollTop = messagesEl.scrollHeight;
-            }
-          } catch {}
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const parsed = JSON.parse(line.slice(6).trim());
+              if (parsed.done) break;
+              if (parsed.text) {
+                if (aiMsg.querySelector('.typing-dots')) aiMsg.textContent = '';
+                aiContent += parsed.text;
+                aiMsg.textContent = aiContent;
+                aiMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+              if (parsed.error) aiMsg.textContent = 'שגיאה: ' + parsed.error;
+            } catch {}
+          }
         }
+      } catch (err) {
+        aiMsg.textContent = 'שגיאה: ' + err.message;
       }
 
       isStreaming = false;
-      document.getElementById('sendBtn').disabled = false;
+      $('sendBtn').disabled = false;
       chatInput.focus();
     }
 
-    document.getElementById('bookInput').addEventListener('keydown', e => {
+    $('bookInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') startBook();
     });
   </script>
