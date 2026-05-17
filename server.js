@@ -57,6 +57,21 @@ function isAggregator(item) {
   return AGGREGATOR_PATTERNS.some(p => t.includes(p) || a.includes(p));
 }
 
+function cleanTitle(t) {
+  if (!t) return t;
+  return String(t)
+    .replace(/\s*\((ספר|book|novel|רומן|הרומן|הספר)\)\s*$/i, '')
+    .replace(/\s*:\s*$/, '')
+    .trim();
+}
+
+function primaryAuthor(authors) {
+  if (!authors) return authors;
+  // Take only the first author — translators and editors are usually listed after the main author
+  const first = String(authors).split(/[,;]/)[0].trim();
+  return first || authors;
+}
+
 // ─── Data sources ─────────────────────────────────────────────────────────────
 
 async function fetchGoogleBooks(bookName) {
@@ -356,8 +371,8 @@ ${rawContext ? `\nמידע אמיתי על הספר ממקורות חיצוני�
     }
 
     const result = {
-      title: google?.title || heWiki?.title || enWiki?.title || book,
-      authors: google?.authors || openLib?.authors || null,
+      title: cleanTitle(heWiki?.title || google?.title || enWiki?.title || openLib?.title || book),
+      authors: primaryAuthor(google?.authors || openLib?.authors) || null,
       year: google?.year || null,
       pageCount: google?.pageCount || null,
       subjects: (google?.subjects || openLib?.subjects || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6),
